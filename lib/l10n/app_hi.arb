@@ -1,0 +1,23 @@
+{
+  "@@locale": "hi",
+  "appTitle": "प्रिज्म ब्लॉक्स",
+  "playClassic": "क्लासिक खेलें",
+  "dailyChallenge": "दैनिक चुनौती",
+  "zenMode": "ज़ेन मोड",
+  "bestRecord": "सर्वश्रेष्ठ रिकॉर्ड",
+  "score": "स्कोर",
+  "best": "सर्वश्रेष्ठ",
+  "gameOver": "खेल समाप्त",
+  "revive": "पुनर्जीवित करें",
+  "playAgain": "फिर से खेलें",
+  "share": "साझा करें",
+  "home": "होम",
+  "themes": "थीम्स",
+  "shop": "दुकान",
+  "leaderboard": "लीडरबोर्ड",
+  "achievements": "उपलब्धियां",
+  "stats": "आंकड़े",
+  "settings": "सेटिंग्स",
+  "coins": "सिक्के",
+  "gems": "रत्न"
+}

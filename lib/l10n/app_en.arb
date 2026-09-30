@@ -1,0 +1,23 @@
+{
+  "@@locale": "en",
+  "appTitle": "Prism Blocks",
+  "playClassic": "PLAY CLASSIC",
+  "dailyChallenge": "DAILY CHALLENGE",
+  "zenMode": "Zen Mode",
+  "bestRecord": "BEST RECORD",
+  "score": "SCORE",
+  "best": "BEST",
+  "gameOver": "GAME OVER",
+  "revive": "REVIVE",
+  "playAgain": "PLAY AGAIN",
+  "share": "SHARE",
+  "home": "HOME",
+  "themes": "Themes",
+  "shop": "Shop",
+  "leaderboard": "Leaderboard",
+  "achievements": "Achievements",
+  "stats": "Career Stats",
+  "settings": "Settings",
+  "coins": "Coins",
+  "gems": "Gems"
+}

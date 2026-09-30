@@ -1,0 +1,23 @@
+{
+  "@@locale": "ar",
+  "appTitle": "مكعبات بريزم",
+  "playClassic": "العب كلاسيك",
+  "dailyChallenge": "التحدي اليومي",
+  "zenMode": "وضع زن",
+  "bestRecord": "أفضل نتيجة",
+  "score": "النقاط",
+  "best": "الأفضل",
+  "gameOver": "انتهت اللعبة",
+  "revive": "إعادة الإحياء",
+  "playAgain": "العب مجدداً",
+  "share": "مشاركة",
+  "home": "الرئيسية",
+  "themes": "المظاهر",
+  "shop": "المتجر",
+  "leaderboard": "لوحة الصدارة",
+  "achievements": "الإنجازات",
+  "stats": "الإحصائيات",
+  "settings": "الإعدادات",
+  "coins": "العملات",
+  "gems": "الجواهر"
+}
