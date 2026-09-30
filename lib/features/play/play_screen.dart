@@ -197,7 +197,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen>
         scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
         child: FadeTransition(opacity: anim, child: child),
       ),
-      pageBuilder: (ctx, _, _2) => StatefulBuilder(
+      pageBuilder: (ctx, _, _) => StatefulBuilder(
         builder: (context, setDialogState) => Center(
           child: Material(
             color: Colors.transparent,
@@ -720,7 +720,7 @@ class _PlayAmbientBg extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, _2) => CustomPaint(
+      builder: (_, _) => CustomPaint(
         size: size,
         painter: _PlayAmbientPainter(controller.value),
       ),
