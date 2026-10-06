@@ -60,6 +60,47 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
   LinesToClear activeClearingLines = const LinesToClear(rows: [], columns: []);
   double lineClearProgress = 1.0;
 
+  // Reusable paints to avoid per-frame allocations & GPU churn
+  final Paint _boardGlowPaint = Paint()
+    ..color = const Color(0x2200E5FF)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+  final Paint _boardBgPaint = Paint();
+  final Paint _boardBorderPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5;
+  final Paint _gridPaint = Paint()
+    ..color = const Color(0x12FFFFFF)
+    ..strokeWidth = 0.8
+    ..style = PaintingStyle.stroke;
+  final Paint _dotPaint = Paint()..color = const Color(0x18FFFFFF);
+  final Paint _projectedHighlightPaint = Paint()..color = const Color(0x4000E5FF);
+  final Paint _projectedStrokePaint = Paint()
+    ..color = const Color(0x8800E5FF)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5;
+
+  final Paint _trayGlowPaint = Paint()
+    ..color = const Color(0x1800E5FF)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
+  final Paint _trayBgPaint = Paint();
+  final Paint _trayBorderPaint = Paint()
+    ..color = const Color(0x30FFFFFF)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2;
+  final Paint _slotBgPaint = Paint()..color = const Color(0x18FFFFFF);
+  final Paint _slotBorderPaint = Paint()
+    ..color = const Color(0x20FFFFFF)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0;
+  final Paint _divPaint = Paint()
+    ..color = const Color(0x15FFFFFF)
+    ..strokeWidth = 1.0;
+  final Paint _emptySlotPaint = Paint()
+    ..color = const Color(0x20FFFFFF)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5
+    ..strokeCap = StrokeCap.round;
+
   PrismFlameGame({
     required this.engine,
     required this.audio,
@@ -79,6 +120,22 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
   void updateTheme(GameThemeData newTheme, bool colorblind) {
     theme = newTheme;
     isColorblind = colorblind;
+    if (boardSize > 0) {
+      final boardRect = Rect.fromLTWH(
+        boardTopLeft.dx,
+        boardTopLeft.dy,
+        boardSize,
+        boardSize,
+      );
+      _boardBgPaint.shader = LinearGradient(
+        colors: [
+          theme.boardBackground,
+          Color.lerp(theme.boardBackground, const Color(0xFF0A0E20), 0.5)!,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(boardRect);
+    }
   }
 
   void _calculateLayout(double screenW, double screenH) {
@@ -104,6 +161,42 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
         trayHeight,
       );
     }
+
+    // Pre-cache board shaders
+    final boardRect = Rect.fromLTWH(
+      boardTopLeft.dx,
+      boardTopLeft.dy,
+      boardSize,
+      boardSize,
+    );
+    _boardBgPaint.shader = LinearGradient(
+      colors: [
+        theme.boardBackground,
+        Color.lerp(theme.boardBackground, const Color(0xFF0A0E20), 0.5)!,
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(boardRect);
+
+    _boardBorderPaint.shader = const LinearGradient(
+      colors: [Color(0x55FFFFFF), Color(0x15FFFFFF)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(boardRect);
+
+    // Pre-cache tray shaders
+    final panelMargin = 14.0;
+    final panelRect = Rect.fromLTWH(
+      panelMargin,
+      trayY - 14,
+      screenW - panelMargin * 2,
+      trayHeight + 28,
+    );
+    _trayBgPaint.shader = const LinearGradient(
+      colors: [Color(0xFF161B2E), Color(0xFF0F1226)],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    ).createShader(panelRect);
   }
 
   @override
@@ -178,52 +271,27 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
     );
 
     // Outer glow shadow
-    final glowPaint = Paint()
-      ..color = const Color(0x2200E5FF)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
-    canvas.drawRRect(boardRRect.shift(const Offset(0, 4)), glowPaint);
+    canvas.drawRRect(boardRRect.shift(const Offset(0, 4)), _boardGlowPaint);
 
     // Board gradient backdrop
-    final bgPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          theme.boardBackground,
-          Color.lerp(theme.boardBackground, const Color(0xFF0A0E20), 0.5)!,
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(boardRect);
-    canvas.drawRRect(boardRRect, bgPaint);
+    canvas.drawRRect(boardRRect, _boardBgPaint);
 
     // Inner border highlight (top-left brighter)
-    final borderPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0x55FFFFFF), Color(0x15FFFFFF)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(boardRect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    canvas.drawRRect(boardRRect, borderPaint);
+    canvas.drawRRect(boardRRect, _boardBorderPaint);
 
     // Subtle grid lines (instead of drawing per-cell empty backgrounds)
-    final gridPaint = Paint()
-      ..color = const Color(0x12FFFFFF)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
-
     for (int i = 1; i < Board.size; i++) {
       // Vertical
       canvas.drawLine(
         Offset(boardTopLeft.dx + i * cellSize, boardTopLeft.dy + 4),
         Offset(boardTopLeft.dx + i * cellSize, boardTopLeft.dy + boardSize - 4),
-        gridPaint,
+        _gridPaint,
       );
       // Horizontal
       canvas.drawLine(
         Offset(boardTopLeft.dx + 4, boardTopLeft.dy + i * cellSize),
         Offset(boardTopLeft.dx + boardSize - 4, boardTopLeft.dy + i * cellSize),
-        gridPaint,
+        _gridPaint,
       );
     }
 
@@ -238,37 +306,22 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
         );
 
         // Empty cell — subtle dot instead of full rectangle (less visual noise)
-        final dotPaint = Paint()..color = const Color(0x18FFFFFF);
         canvas.drawCircle(
           cellRect.center,
           cellSize * 0.08,
-          dotPaint,
+          _dotPaint,
         );
 
         // Projected line clear highlight
         final isProjectedRow = projectedClearedLines.rows.contains(y);
         final isProjectedCol = projectedClearedLines.columns.contains(x);
         if (isProjectedRow || isProjectedCol) {
-          final highlightPaint = Paint()
-            ..color = const Color(0x4000E5FF);
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              cellRect.deflate(cellRect.width * 0.05),
-              Radius.circular(cellRect.width * 0.18),
-            ),
-            highlightPaint,
+          final deflated = RRect.fromRectAndRadius(
+            cellRect.deflate(cellRect.width * 0.05),
+            Radius.circular(cellRect.width * 0.18),
           );
-          final strokePaint = Paint()
-            ..color = const Color(0x8800E5FF)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5;
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              cellRect.deflate(cellRect.width * 0.05),
-              Radius.circular(cellRect.width * 0.18),
-            ),
-            strokePaint,
-          );
+          canvas.drawRRect(deflated, _projectedHighlightPaint);
+          canvas.drawRRect(deflated, _projectedStrokePaint);
         }
 
         // Active placed block
@@ -339,26 +392,13 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
     );
 
     // Panel shadow/glow
-    final panelGlow = Paint()
-      ..color = const Color(0x1800E5FF)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
-    canvas.drawRRect(panelRRect, panelGlow);
+    canvas.drawRRect(panelRRect, _trayGlowPaint);
 
     // Panel gradient fill
-    final panelBg = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF161B2E), Color(0xFF0F1226)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(panelRect);
-    canvas.drawRRect(panelRRect, panelBg);
+    canvas.drawRRect(panelRRect, _trayBgPaint);
 
     // Panel border
-    final panelBorder = Paint()
-      ..color = const Color(0x30FFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    canvas.drawRRect(panelRRect, panelBorder);
+    canvas.drawRRect(panelRRect, _trayBorderPaint);
 
     // ── Slot backgrounds ─────────────────────────────────────────────
     for (int i = 0; i < 3; i++) {
@@ -370,28 +410,18 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
         const Radius.circular(14),
       );
 
-      // Slot fill
-      final slotPaint = Paint()..color = const Color(0x18FFFFFF);
-      canvas.drawRRect(slotRRect, slotPaint);
-
-      // Slot border
-      final slotBorder = Paint()
-        ..color = const Color(0x20FFFFFF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0;
-      canvas.drawRRect(slotRRect, slotBorder);
+      // Slot fill & border
+      canvas.drawRRect(slotRRect, _slotBgPaint);
+      canvas.drawRRect(slotRRect, _slotBorderPaint);
     }
 
     // ── Slot dividers ────────────────────────────────────────────────
-    final divPaint = Paint()
-      ..color = const Color(0x15FFFFFF)
-      ..strokeWidth = 1.0;
     for (int i = 1; i < 3; i++) {
       final x = traySlotRects[i].left;
       canvas.drawLine(
         Offset(x, trayY),
         Offset(x, trayY + trayHeight),
-        divPaint,
+        _divPaint,
       );
     }
 
@@ -401,17 +431,12 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
       final piece = engine.state.tray[i];
       if (piece == null) {
         // Empty slot indicator
-        final emptyPaint = Paint()
-          ..color = const Color(0x20FFFFFF)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round;
         final slot = traySlotRects[i];
         final cx = slot.center.dx;
         final cy = slot.center.dy;
         const r = 10.0;
-        canvas.drawLine(Offset(cx - r, cy), Offset(cx + r, cy), emptyPaint);
-        canvas.drawLine(Offset(cx, cy - r), Offset(cx, cy + r), emptyPaint);
+        canvas.drawLine(Offset(cx - r, cy), Offset(cx + r, cy), _emptySlotPaint);
+        canvas.drawLine(Offset(cx, cy - r), Offset(cx, cy + r), _emptySlotPaint);
         continue;
       }
 
@@ -577,19 +602,27 @@ class PrismFlameGame extends FlameGame with DragCallbacks {
     final snappedX = relativeX.round();
     final snappedY = relativeY.round();
 
-    final candidateOrigin = BoardPoint(snappedX, snappedY);
+    final isWithinReach = snappedX >= -1 &&
+        snappedX <= Board.size &&
+        snappedY >= -1 &&
+        snappedY <= Board.size;
 
-    if (engine.state.board.canPlacePiece(shape, candidateOrigin)) {
+    final candidateOrigin = isWithinReach ? BoardPoint(snappedX, snappedY) : null;
+
+    // HIGH-PERFORMANCE EARLY EXIT: Skip redundant board tests when hovering the exact same cell
+    if (candidateOrigin == hoveredBoardOrigin) {
+      return;
+    }
+
+    if (candidateOrigin != null &&
+        engine.state.board.canPlacePiece(shape, candidateOrigin)) {
       hoveredBoardOrigin = candidateOrigin;
       isHoveredPlacementValid = true;
       projectedClearedLines = engine.state.board.previewClearedLines(
         shape,
         candidateOrigin,
       );
-    } else if (snappedX >= -1 &&
-        snappedX <= Board.size &&
-        snappedY >= -1 &&
-        snappedY <= Board.size) {
+    } else if (candidateOrigin != null) {
       hoveredBoardOrigin = candidateOrigin;
       isHoveredPlacementValid = false;
       projectedClearedLines = const LinesToClear(rows: [], columns: []);

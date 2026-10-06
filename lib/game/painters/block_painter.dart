@@ -1,22 +1,59 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+class _ColorCache {
+  final Color lightColor;
+  final Color midColor;
+  final Color darkColor;
+
+  const _ColorCache({
+    required this.lightColor,
+    required this.midColor,
+    required this.darkColor,
+  });
+
+  factory _ColorCache.fromColor(Color color) {
+    final hsl = HSLColor.fromColor(color);
+    return _ColorCache(
+      lightColor: hsl.withLightness((hsl.lightness + 0.18).clamp(0.0, 1.0)).toColor(),
+      midColor: color,
+      darkColor: hsl.withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0)).toColor(),
+    );
+  }
+}
+
 /// Renders premium jewel-like blocks with:
 /// - Gradient fill + 3D bevel
 /// - Inner gem shine spot
 /// - Pulsing glow for highlighted/clearing cells
-/// - Optimized: avoids unnecessary shader creation for ghost blocks
+/// - Optimized: zero per-frame Paint/Path allocations & cached HSL derivates
 abstract final class BlockPainter {
   // Cached paints for performance (reused across calls)
-  static final Paint _shadowPaint = Paint();
+  static final Paint _shadowPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
   static final Paint _fillPaint = Paint();
   static final Paint _bevelPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round;
   static final Paint _shinePaint = Paint()..style = PaintingStyle.fill;
-  static final Paint _glowPaint = Paint()
-    ..style = PaintingStyle.stroke;
+  static final Paint _glowPaint = Paint()..style = PaintingStyle.stroke;
   static final Paint _ghostPaint = Paint()..style = PaintingStyle.fill;
+  static final Paint _ghostBorderPaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _markPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+  static final Path _markPath = Path();
+
+  // Cached color derivations to eliminate repeated HSL calculations
+  static final Map<int, _ColorCache> _colorCache = {};
+
+  static _ColorCache _getColors(Color color) {
+    return _colorCache.putIfAbsent(
+      color.toARGB32(),
+      () => _ColorCache.fromColor(color),
+    );
+  }
 
   static void drawBlock(
     Canvas canvas,
@@ -61,24 +98,16 @@ abstract final class BlockPainter {
     }
 
     final alphaScale = (255 * opacity).toInt();
-    final hsl = HSLColor.fromColor(displayColor);
+    final cached = _getColors(displayColor);
 
     // ── Drop shadow ──────────────────────────────────────
-    _shadowPaint
-      ..color = displayColor.withAlpha((60 * opacity).toInt())
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    _shadowPaint.color = displayColor.withAlpha((55 * opacity).toInt());
     canvas.drawRRect(rrect.shift(const Offset(0, 3)), _shadowPaint);
 
     // ── Main gradient fill ────────────────────────────────
-    final lightColor = hsl
-        .withLightness((hsl.lightness + 0.18).clamp(0.0, 1.0))
-        .toColor()
-        .withAlpha(alphaScale);
-    final midColor = displayColor.withAlpha(alphaScale);
-    final darkColor = hsl
-        .withLightness((hsl.lightness - 0.20).clamp(0.0, 1.0))
-        .toColor()
-        .withAlpha(alphaScale);
+    final lightColor = cached.lightColor.withAlpha(alphaScale);
+    final midColor = cached.midColor.withAlpha(alphaScale);
+    final darkColor = cached.darkColor.withAlpha(alphaScale);
 
     _fillPaint.shader = LinearGradient(
       colors: [lightColor, midColor, darkColor],
@@ -121,10 +150,8 @@ abstract final class BlockPainter {
       final glowOpacity = (1.0 - clearProgress * 2).clamp(0.0, 1.0);
       _glowPaint
         ..color = displayColor.withAlpha((180 * glowOpacity).toInt())
-        ..strokeWidth = 3.0
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+        ..strokeWidth = 3.0;
       canvas.drawRRect(rrect, _glowPaint);
-      _glowPaint.maskFilter = null;
     }
 
     // ── Colorblind shape mark ─────────────────────────────
@@ -158,12 +185,11 @@ abstract final class BlockPainter {
     _ghostPaint.color = displayColor.withAlpha((255 * opacity).toInt());
     canvas.drawRRect(rrect, _ghostPaint);
 
-    // Border outline
-    final borderPaint = Paint()
+    // Reusable border outline paint
+    _ghostBorderPaint
       ..color = displayColor.withAlpha((200 * opacity).toInt())
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    canvas.drawRRect(rrect, borderPaint);
+    canvas.drawRRect(rrect, _ghostBorderPaint);
   }
 
   static void _drawShapeMark(
@@ -173,35 +199,32 @@ abstract final class BlockPainter {
     String mark,
     double opacity,
   ) {
-    final markPaint = Paint()
+    _markPaint
       ..color = Colors.white.withAlpha((160 * opacity).toInt())
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.5, radius * 0.22)
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeWidth = math.max(1.5, radius * 0.22);
 
     switch (mark) {
       case 'circle':
-        canvas.drawCircle(center, radius * 0.65, markPaint);
+        canvas.drawCircle(center, radius * 0.65, _markPaint);
         break;
 
       case 'diamond':
-        final path = Path()
-          ..moveTo(center.dx, center.dy - radius * 0.8)
-          ..lineTo(center.dx + radius * 0.8, center.dy)
-          ..lineTo(center.dx, center.dy + radius * 0.8)
-          ..lineTo(center.dx - radius * 0.8, center.dy)
-          ..close();
-        canvas.drawPath(path, markPaint);
+        _markPath.reset();
+        _markPath.moveTo(center.dx, center.dy - radius * 0.8);
+        _markPath.lineTo(center.dx + radius * 0.8, center.dy);
+        _markPath.lineTo(center.dx, center.dy + radius * 0.8);
+        _markPath.lineTo(center.dx - radius * 0.8, center.dy);
+        _markPath.close();
+        canvas.drawPath(_markPath, _markPaint);
         break;
 
       case 'triangle':
-        final path = Path()
-          ..moveTo(center.dx, center.dy - radius * 0.8)
-          ..lineTo(center.dx + radius * 0.8, center.dy + radius * 0.7)
-          ..lineTo(center.dx - radius * 0.8, center.dy + radius * 0.7)
-          ..close();
-        canvas.drawPath(path, markPaint);
+        _markPath.reset();
+        _markPath.moveTo(center.dx, center.dy - radius * 0.8);
+        _markPath.lineTo(center.dx + radius * 0.8, center.dy + radius * 0.7);
+        _markPath.lineTo(center.dx - radius * 0.8, center.dy + radius * 0.7);
+        _markPath.close();
+        canvas.drawPath(_markPath, _markPaint);
         break;
 
       case 'square':
@@ -210,7 +233,7 @@ abstract final class BlockPainter {
           width: radius * 1.3,
           height: radius * 1.3,
         );
-        canvas.drawRect(sqRect, markPaint);
+        canvas.drawRect(sqRect, _markPaint);
         break;
 
       case 'cross':
@@ -218,12 +241,12 @@ abstract final class BlockPainter {
         canvas.drawLine(
           Offset(center.dx - d, center.dy),
           Offset(center.dx + d, center.dy),
-          markPaint,
+          _markPaint,
         );
         canvas.drawLine(
           Offset(center.dx, center.dy - d),
           Offset(center.dx, center.dy + d),
-          markPaint,
+          _markPaint,
         );
         break;
 
@@ -234,12 +257,12 @@ abstract final class BlockPainter {
         canvas.drawLine(
           Offset(center.dx - d, center.dy - d),
           Offset(center.dx + d, center.dy + d),
-          markPaint,
+          _markPaint,
         );
         canvas.drawLine(
           Offset(center.dx - d, center.dy + d),
           Offset(center.dx + d, center.dy - d),
-          markPaint,
+          _markPaint,
         );
         break;
     }

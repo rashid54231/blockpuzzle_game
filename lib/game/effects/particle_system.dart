@@ -45,12 +45,13 @@ class BlockParticle {
     return true;
   }
 
+  static final Paint _particlePaint = Paint()..style = PaintingStyle.fill;
+  static final Path _particlePath = Path();
+
   void render(Canvas canvas) {
     if (opacity <= 0.01) return;
 
-    final paint = Paint()
-      ..color = color.withAlpha((255 * opacity).toInt())
-      ..style = PaintingStyle.fill;
+    _particlePaint.color = color.withAlpha((255 * opacity).toInt());
 
     final currentSize = size * (0.6 + opacity * 0.4);
 
@@ -60,7 +61,7 @@ class BlockParticle {
 
     switch (shape) {
       case 0: // circle
-        canvas.drawCircle(Offset.zero, currentSize, paint);
+        canvas.drawCircle(Offset.zero, currentSize, _particlePaint);
         break;
       case 1: // square
         canvas.drawRect(
@@ -69,20 +70,20 @@ class BlockParticle {
             width: currentSize * 1.6,
             height: currentSize * 1.6,
           ),
-          paint,
+          _particlePaint,
         );
         break;
       case 2: // diamond
-        final path = Path()
-          ..moveTo(0, -currentSize * 1.4)
-          ..lineTo(currentSize, 0)
-          ..lineTo(0, currentSize * 1.4)
-          ..lineTo(-currentSize, 0)
-          ..close();
-        canvas.drawPath(path, paint);
+        _particlePath.reset();
+        _particlePath.moveTo(0, -currentSize * 1.4);
+        _particlePath.lineTo(currentSize, 0);
+        _particlePath.lineTo(0, currentSize * 1.4);
+        _particlePath.lineTo(-currentSize, 0);
+        _particlePath.close();
+        canvas.drawPath(_particlePath, _particlePaint);
         break;
       case 3: // sparkle / star
-        _drawSparkle(canvas, paint, currentSize);
+        _drawSparkle(canvas, _particlePaint, currentSize);
         break;
     }
 
@@ -90,19 +91,19 @@ class BlockParticle {
   }
 
   void _drawSparkle(Canvas canvas, Paint paint, double r) {
-    final path = Path();
+    _particlePath.reset();
     for (int i = 0; i < 4; i++) {
       final outerAngle = i * math.pi / 2;
       final innerAngle = outerAngle + math.pi / 4;
       if (i == 0) {
-        path.moveTo(math.cos(outerAngle) * r * 1.5, math.sin(outerAngle) * r * 1.5);
+        _particlePath.moveTo(math.cos(outerAngle) * r * 1.5, math.sin(outerAngle) * r * 1.5);
       } else {
-        path.lineTo(math.cos(outerAngle) * r * 1.5, math.sin(outerAngle) * r * 1.5);
+        _particlePath.lineTo(math.cos(outerAngle) * r * 1.5, math.sin(outerAngle) * r * 1.5);
       }
-      path.lineTo(math.cos(innerAngle) * r * 0.5, math.sin(innerAngle) * r * 0.5);
+      _particlePath.lineTo(math.cos(innerAngle) * r * 0.5, math.sin(innerAngle) * r * 0.5);
     }
-    path.close();
-    canvas.drawPath(path, paint);
+    _particlePath.close();
+    canvas.drawPath(_particlePath, paint);
   }
 }
 

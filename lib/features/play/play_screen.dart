@@ -751,17 +751,18 @@ class _PlayAmbientPainter extends CustomPainter {
     );
   }
 
+  static final Paint _orbPaint = Paint();
+
   void _drawOrb(Canvas canvas, {
     required double cx,
     required double cy,
     required double radius,
     required Color color,
   }) {
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [color, Colors.transparent],
-      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: radius));
-    canvas.drawCircle(Offset(cx, cy), radius, paint);
+    _orbPaint.shader = RadialGradient(
+      colors: [color, Colors.transparent],
+    ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: radius));
+    canvas.drawCircle(Offset(cx, cy), radius, _orbPaint);
   }
 
   @override

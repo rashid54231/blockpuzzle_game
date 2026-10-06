@@ -35,21 +35,27 @@ class Board {
   bool get isFull => filledCellCount == size * size;
 
   /// Validates whether a [PieceShape] can be placed at an origin coordinate [origin].
-  bool canPlacePiece(PieceShape shape, BoardPoint origin) {
+  bool canPlacePiece(PieceShape shape, BoardPoint origin) =>
+      canPlacePieceAt(shape, origin.x, origin.y);
+
+  /// Validates placement by direct (originX, originY) coordinates without allocating [BoardPoint].
+  bool canPlacePieceAt(PieceShape shape, int originX, int originY) {
     for (final p in shape.points) {
-      final targetX = origin.x + p.x;
-      final targetY = origin.y + p.y;
+      final targetX = originX + p.x;
+      final targetY = originY + p.y;
       if (!isInBounds(targetX, targetY)) return false;
       if (!isCellEmpty(targetX, targetY)) return false;
     }
     return true;
   }
 
-  /// Checks if [shape] can be placed anywhere on this board.
+  /// Checks if [shape] can be placed anywhere on this board without allocating objects.
   bool canPlacePieceAnywhere(PieceShape shape) {
-    for (int y = 0; y <= size - shape.height; y++) {
-      for (int x = 0; x <= size - shape.width; x++) {
-        if (canPlacePiece(shape, BoardPoint(x, y))) {
+    final maxY = size - shape.height;
+    final maxX = size - shape.width;
+    for (int y = 0; y <= maxY; y++) {
+      for (int x = 0; x <= maxX; x++) {
+        if (canPlacePieceAt(shape, x, y)) {
           return true;
         }
       }
@@ -122,12 +128,65 @@ class Board {
   }
 
   /// Projects what lines WOULD clear if [shape] was placed at [origin].
+  /// Fast-path: checks only intersecting rows/cols without allocating a cloned Board.
   LinesToClear previewClearedLines(PieceShape shape, BoardPoint origin) {
-    if (!canPlacePiece(shape, origin)) {
+    if (!canPlacePieceAt(shape, origin.x, origin.y)) {
       return const LinesToClear(rows: [], columns: []);
     }
-    final hypotheticalBoard = placePiece(shape, origin, 999);
-    return hypotheticalBoard.findFilledLines();
+
+    final rowsToCheck = <int>{};
+    final colsToCheck = <int>{};
+    for (final p in shape.points) {
+      rowsToCheck.add(origin.y + p.y);
+      colsToCheck.add(origin.x + p.x);
+    }
+
+    final clearedRows = <int>[];
+    for (final y in rowsToCheck) {
+      bool full = true;
+      for (int x = 0; x < size; x++) {
+        if (isCellEmpty(x, y)) {
+          bool coveredByShape = false;
+          for (final p in shape.points) {
+            if (origin.x + p.x == x && origin.y + p.y == y) {
+              coveredByShape = true;
+              break;
+            }
+          }
+          if (!coveredByShape) {
+            full = false;
+            break;
+          }
+        }
+      }
+      if (full) clearedRows.add(y);
+    }
+
+    final clearedCols = <int>[];
+    for (final x in colsToCheck) {
+      bool full = true;
+      for (int y = 0; y < size; y++) {
+        if (isCellEmpty(x, y)) {
+          bool coveredByShape = false;
+          for (final p in shape.points) {
+            if (origin.x + p.x == x && origin.y + p.y == y) {
+              coveredByShape = true;
+              break;
+            }
+          }
+          if (!coveredByShape) {
+            full = false;
+            break;
+          }
+        }
+      }
+      if (full) clearedCols.add(x);
+    }
+
+    return LinesToClear(
+      rows: clearedRows..sort(),
+      columns: clearedCols..sort(),
+    );
   }
 
   /// Revive clearance: clears a 3x3 centered area around the board center.

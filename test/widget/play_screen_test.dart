@@ -27,15 +27,15 @@ void main() {
     // Verify HUD elements
     expect(find.text('SCORE'), findsOneWidget);
     expect(find.text('BEST'), findsOneWidget);
-    expect(find.byIcon(Icons.pause_circle_outline), findsOneWidget);
-    expect(find.byIcon(Icons.undo), findsOneWidget);
+    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.undo_rounded), findsOneWidget);
 
     // Open pause menu
-    await tester.tap(find.byIcon(Icons.pause_circle_outline));
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.byIcon(Icons.pause_rounded));
+    await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Game Paused'), findsOneWidget);
-    expect(find.text('RESUME'), findsOneWidget);
+    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.text('RESUME GAME'), findsOneWidget);
     expect(find.text('Exit to Home'), findsOneWidget);
   });
 }

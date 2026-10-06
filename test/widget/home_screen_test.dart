@@ -27,7 +27,8 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 950));
 
     // Verify title
     expect(find.text(GameConstants.appTitle), findsOneWidget);
@@ -38,8 +39,8 @@ void main() {
 
     // Verify game modes
     expect(find.text('PLAY CLASSIC'), findsOneWidget);
-    expect(find.text('DAILY CHALLENGE'), findsOneWidget);
-    expect(find.text('Zen Mode (Relaxed & Endless)'), findsOneWidget);
+    expect(find.text('DAILY'), findsOneWidget);
+    expect(find.text('ZEN'), findsOneWidget);
 
     // Verify navigation tabs
     expect(find.text('Themes'), findsOneWidget);
