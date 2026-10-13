@@ -1014,3 +1014,4 @@ class _CosmicStarsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CosmicStarsPainter old) => old.progress != progress;
 }
+//splash
